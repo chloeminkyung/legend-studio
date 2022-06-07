@@ -17,6 +17,7 @@
 import type { V1_Notifier } from './V1_DSLPersistence_Notifier';
 import type { V1_Persister } from './V1_DSLPersistence_Persister';
 import type { V1_Trigger } from './V1_DSLPersistence_Trigger';
+import type { V1_PersistenceTestSuite } from './V1_DSLPersistence_PersistenceTestSuite';
 import {
   V1_PackageableElement,
   type V1_PackageableElementVisitor,
@@ -30,6 +31,7 @@ export class V1_Persistence extends V1_PackageableElement implements Hashable {
   service!: string;
   persister!: V1_Persister;
   notifier!: V1_Notifier;
+  testSuites: V1_PersistenceTestSuite[] = [];
 
   override get hashCode(): string {
     return hashArray([
@@ -39,6 +41,7 @@ export class V1_Persistence extends V1_PackageableElement implements Hashable {
       this.service,
       this.persister,
       this.notifier,
+      hashArray(this.testSuites),
     ]);
   }
 

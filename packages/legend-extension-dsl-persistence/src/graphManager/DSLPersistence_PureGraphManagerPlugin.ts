@@ -59,7 +59,7 @@ export class DSLPersistence_PureGraphManagerPlugin extends PureGraphManagerPlugi
         context: ObserverContext,
       ): PackageableElement | undefined => {
         if (element instanceof Persistence) {
-          return observe_Persistence(element);
+          return observe_Persistence(element, context);
         }
         return undefined;
       },

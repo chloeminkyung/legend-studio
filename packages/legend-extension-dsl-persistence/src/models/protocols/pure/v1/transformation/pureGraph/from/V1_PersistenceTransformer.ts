@@ -154,6 +154,22 @@ import {
   V1_transformConnection,
   V1_transformElementReference,
 } from '@finos/legend-graph';
+import { V1_transformEmbeddedData } from '../../../../../../../../../legend-graph/src/models/protocols/pure/v1/transformation/pureGraph/from/V1_DataElementTransformer';
+import { V1_PersistenceTest } from '../../../model/packageableElements/persistence/V1_DSLPersistence_PersistenceTest';
+import type { ConnectionTestData } from '../../../../../../metamodels/pure/model/packageableElements/persistence/DSLPersistence_ConnectionTestData';
+import { V1_ConnectionTestData } from '../../../model/packageableElements/persistence/V1_DSLPersistence_ConnectionTestData';
+import { V1_ParameterValue } from '../../../model/packageableElements/persistence/V1_DSLPersistence_ParameterValue';
+import type { ParameterValue } from '../../../../../../metamodels/pure/model/packageableElements/persistence/DSLPersistence_ParameterValue';
+import type { PersistenceTest } from '../../../../../../metamodels/pure/model/packageableElements/persistence/DSLPersistence_PersistenceTest';
+import type { TestData } from '../../../../../../metamodels/pure/model/packageableElements/persistence/DSLPersistence_PersistenceTestData';
+import { V1_TestData } from '../../../model/packageableElements/persistence/V1_DSLPersistence_TestData';
+import { V1_PersistenceTestSuite } from '../../../model/packageableElements/persistence/V1_DSLPersistence_PersistenceTestSuite';
+import type { PersistenceTestSuite } from '../../../../../../metamodels/pure/model/packageableElements/persistence/DSLPersistence_PersistenceTestSuite';
+import {
+  V1_transformAtomicTest,
+  V1_transformTestAssertion,
+  V1_transformTestSuite,
+} from './V1_PersistenceTestTransformer';
 import { UnsupportedOperationError } from '@finos/legend-shared';
 
 /**********
@@ -586,6 +602,69 @@ export const V1_transformNotifier = (
 };
 
 /**********
+ * testSuites
+ **********/
+
+const transformConnectionTestData = (
+  element: ConnectionTestData,
+  context: V1_GraphTransformerContext,
+): V1_ConnectionTestData => {
+  const connectionTestData = new V1_ConnectionTestData();
+  connectionTestData.id = element.connectionId;
+  connectionTestData.data = V1_transformEmbeddedData(element.testData, context);
+  return connectionTestData;
+};
+
+const transformParameterValue = (
+  element: ParameterValue,
+): V1_ParameterValue => {
+  const parameterValue = new V1_ParameterValue();
+  parameterValue.name = element.name;
+  parameterValue.value = element.value;
+  return parameterValue;
+};
+
+const transformTestData = (
+  element: TestData,
+  context: V1_GraphTransformerContext,
+): V1_TestData => {
+  const testData = new V1_TestData();
+  testData.connectionsTestData = element.connectionsTestData.map(
+    (connectionTestData) =>
+      transformConnectionTestData(connectionTestData, context),
+  );
+  return testData;
+};
+
+export const V1_transformPersistenceTest = (
+  element: PersistenceTest,
+  context: V1_GraphTransformerContext,
+): V1_PersistenceTest => {
+  const persistenceTest = new V1_PersistenceTest();
+  persistenceTest.id = element.id;
+  persistenceTest.testData = transformTestData(element.testData, context);
+  persistenceTest.assertions = element.assertions.map((assertion) =>
+    V1_transformTestAssertion(assertion),
+  );
+  persistenceTest.parameters = element.parameters.map((parameter) =>
+    transformParameterValue(parameter),
+  );
+  return persistenceTest;
+};
+
+export const V1_transformPersistenceTestSuite = (
+  element: PersistenceTestSuite,
+  context: V1_GraphTransformerContext,
+): V1_PersistenceTestSuite => {
+  const persistenceTestSuite = new V1_PersistenceTestSuite();
+  persistenceTestSuite.id = element.id;
+  persistenceTestSuite.tests = element.tests.map((test) =>
+    V1_transformAtomicTest(test, context),
+  );
+  return persistenceTestSuite;
+};
+
+/**********
  * persistence
  **********/
 
@@ -600,5 +679,10 @@ export const V1_transformPersistence = (
   protocol.service = V1_transformElementReference(element.service);
   protocol.persister = V1_transformPersister(element.persister, context);
   protocol.notifier = V1_transformNotifier(element.notifier, context);
+  if (element.testSuites) {
+    protocol.testSuites = element.testSuites.map((testSuite) =>
+      V1_transformTestSuite(testSuite, context),
+    );
+  }
   return protocol;
 };

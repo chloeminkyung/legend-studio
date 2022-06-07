@@ -17,21 +17,31 @@
 import type { Notifier } from './DSLPersistence_Notifier';
 import type { Persister } from './DSLPersistence_Persister';
 import type { Trigger } from './DSLPersistence_Trigger';
+import type { PersistenceTestSuite } from './DSLPersistence_PersistenceTestSuite';
 import { PERSISTENCE_HASH_STRUCTURE } from '../../../../../DSLPersistence_ModelUtils';
 import {
   PackageableElement,
   type PackageableElementReference,
   type PackageableElementVisitor,
   type Service,
+  type Testable,
+  type Test,
 } from '@finos/legend-graph';
 import { type Hashable, hashArray } from '@finos/legend-shared';
 
-export class Persistence extends PackageableElement implements Hashable {
+export const DEFAULT_PERSISTENCE_PATTERN = '/';
+
+export class Persistence
+  extends PackageableElement
+  implements Hashable, Testable
+{
   documentation!: string;
   trigger!: Trigger;
   service!: PackageableElementReference<Service>;
   persister!: Persister;
   notifier!: Notifier;
+  tests: Test[] = [];
+  testSuites: PersistenceTestSuite[] = [];
 
   protected override get _elementHashCode(): string {
     return hashArray([
@@ -41,6 +51,7 @@ export class Persistence extends PackageableElement implements Hashable {
       this.service.hashValue,
       this.persister,
       this.notifier,
+      hashArray(this.testSuites),
     ]);
   }
 

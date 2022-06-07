@@ -14,18 +14,33 @@
  * limitations under the License.
  */
 
-import { V1_Persistence } from '../../model/packageableElements/persistence/V1_DSLPersistence_Persistence';
+import type { DSLPersistence_PureProtocolProcessorPlugin } from '../../../DSLPersistence_PureProtocolProcessorPlugin';
 import {
   type PureProtocolProcessorPlugin,
   V1_deserializeConnectionValue,
   V1_serializeConnectionValue,
+  type V1_Runtime,
+  V1_EngineRuntime,
+  V1_LegacyRuntime,
+  V1_RuntimePointer,
+  V1_runtimePointerModelSchema,
+  V1_stereotypePtrSchema,
+  V1_taggedValueSchema,
 } from '@finos/legend-graph';
+import { V1_RuntimeType } from '../../../../../../../../legend-graph/src/models/protocols/pure/v1/transformation/pureProtocol/serializationHelpers/V1_RuntimeSerializationHelper';
+import {
+  V1_deserializeEmbeddedDataType,
+  V1_serializeEmbeddedDataType,
+} from '../../../../../../../../legend-graph/src/models/protocols/pure/v1/transformation/pureProtocol/serializationHelpers/V1_DataElementSerializationHelper';
+import type { V1_TestSuite } from '../../../../../../../../legend-graph/src/models/protocols/pure/v1/model/test/V1_TestSuite';
 import {
   deserializeArray,
   type PlainObject,
   serializeArray,
   UnsupportedOperationError,
   usingConstantValueSchema,
+  usingModelSchema,
+  optionalCustom,
 } from '@finos/legend-shared';
 import {
   createModelSchema,
@@ -37,6 +52,7 @@ import {
   primitive,
   serialize,
   SKIP,
+  raw,
 } from 'serializr';
 import {
   V1_CronTrigger,
@@ -103,6 +119,22 @@ import {
   type V1_Persister,
   V1_StreamingPersister,
 } from '../../model/packageableElements/persistence/V1_DSLPersistence_Persister';
+import { V1_Persistence } from '../../model/packageableElements/persistence/V1_DSLPersistence_Persistence';
+import { V1_PersistenceTest } from '../../model/packageableElements/persistence/V1_DSLPersistence_PersistenceTest';
+import { V1_PersistenceTestSuite } from '../../model/packageableElements/persistence/V1_DSLPersistence_PersistenceTestSuite';
+import { V1_ConnectionTestData } from '../../model/packageableElements/persistence/V1_DSLPersistence_ConnectionTestData';
+import { V1_ParameterValue } from '../../model/packageableElements/persistence/V1_DSLPersistence_ParameterValue';
+import { V1_TestData } from '../../model/packageableElements/persistence/V1_DSLPersistence_TestData';
+import {
+  V1_AtomicTestType,
+  V1_deserializeAtomicTest,
+  V1_deserializeTestAssertion,
+  V1_deserializeTestSuite,
+  V1_serializeAtomicTest,
+  V1_serializeTestAssertion,
+  V1_serializeTestSuite,
+  V1_TestSuiteType,
+} from './V1_DSLPersistence_TestSerializationHelper';
 
 /**********
  * notifier
@@ -165,6 +197,95 @@ const V1_notifierModelSchema = createModelSchema(V1_Notifier, {
       }),
   ),
 });
+
+/**********
+ * testSuites
+ **********/
+
+enum V1_PersistenceTestType {
+  SINGLE_EXECUTION_TEST = 'singleExecutionTest',
+  MULTI_EXECUTION_TEST = 'multiExecutionTest',
+}
+
+enum V1_PersistenceExecutionType {
+  PURE_SINGLE_EXECUTION = 'pureSingleExecution',
+  PURE_MULTI_EXECUTION = 'pureMultiExecution',
+}
+
+export const V1_connectionTestDataModelSchema = (
+  plugins: PureProtocolProcessorPlugin[],
+): ModelSchema<V1_ConnectionTestData> =>
+  createModelSchema(V1_ConnectionTestData, {
+    data: custom(
+      (val) => V1_serializeEmbeddedDataType(val, plugins),
+      (val) => V1_deserializeEmbeddedDataType(val, plugins),
+    ),
+    id: primitive(),
+  });
+
+export const V1_parameterValueModelSchema = createModelSchema(
+  V1_ParameterValue,
+  {
+    name: primitive(),
+    value: raw(),
+  },
+);
+
+export const V1_testDataModelSchema = (
+  plugins: PureProtocolProcessorPlugin[],
+): ModelSchema<V1_TestData> =>
+  createModelSchema(V1_TestData, {
+    connectionsTestData: list(
+      usingModelSchema(V1_connectionTestDataModelSchema(plugins)),
+    ),
+  });
+
+export const V1_persistenceTestModelSchema = (
+  plugins: PureProtocolProcessorPlugin[],
+): ModelSchema<V1_PersistenceTest> =>
+  createModelSchema(V1_PersistenceTest, {
+    _type: usingConstantValueSchema(V1_AtomicTestType.PERSISTENCE_TEST),
+    assertions: list(
+      custom(
+        (val) => V1_serializeTestAssertion(val),
+        (val) => V1_deserializeTestAssertion(val),
+      ),
+    ),
+    id: primitive(),
+    testData: usingModelSchema(V1_testDataModelSchema(plugins)),
+    parameters: custom(
+      (values) =>
+        serializeArray(
+          values,
+          (value) => serialize(V1_parameterValueModelSchema, value),
+          {
+            skipIfEmpty: true,
+          },
+        ),
+      (values) =>
+        deserializeArray(
+          values,
+          (v) => deserialize(V1_parameterValueModelSchema, v),
+          {
+            skipIfEmpty: false,
+          },
+        ),
+    ),
+  });
+
+export const V1_persistenceTestSuiteModelSchema = (
+  plugins: PureProtocolProcessorPlugin[],
+): ModelSchema<V1_PersistenceTestSuite> =>
+  createModelSchema(V1_PersistenceTestSuite, {
+    _type: usingConstantValueSchema(V1_TestSuiteType.PERSISTENCE_TEST_SUITE),
+    id: primitive(),
+    tests: list(
+      custom(
+        (val) => V1_serializeAtomicTest(val, plugins),
+        (val) => V1_deserializeAtomicTest(val, plugins),
+      ),
+    ),
+  });
 
 /**********
  * auditing
@@ -975,5 +1096,20 @@ export const V1_persistenceModelSchema = (
     trigger: custom(
       (val) => V1_serializeTrigger(val),
       (val) => V1_deserializeTrigger(val),
+    ),
+    testSuites: custom(
+      (values) =>
+        serializeArray(
+          values,
+          (value: V1_TestSuite) => V1_serializeTestSuite(value, plugins),
+          {
+            skipIfEmpty: true,
+            INTERNAL__forceReturnEmptyInTest: true,
+          },
+        ),
+      (values) =>
+        deserializeArray(values, (v) => V1_deserializeTestSuite(v, plugins), {
+          skipIfEmpty: false,
+        }),
     ),
   });

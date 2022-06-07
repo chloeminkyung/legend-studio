@@ -159,6 +159,23 @@ import {
   guaranteeNonEmptyString,
   UnsupportedOperationError,
 } from '@finos/legend-shared';
+import {
+  V1_buildTestAssertion,
+  V1_buildAtomicTest,
+} from './V1_PersistenceTestBuilderHelper';
+import { V1_ProtocolToMetaModelEmbeddedDataBuilder } from '../../../../../../../../../legend-graph/src/models/protocols/pure/v1/transformation/pureGraph/to/helpers/V1_DataElementBuilderHelper';
+import { ConnectionTestData } from '../../../../../../metamodels/pure/model/packageableElements/persistence/DSLPersistence_ConnectionTestData';
+import { ParameterValue } from '../../../../../../metamodels/pure/model/packageableElements/persistence/DSLPersistence_ParameterValue';
+import { PersistenceTestSuite } from '../../../../../../metamodels/pure/model/packageableElements/persistence/DSLPersistence_PersistenceTestSuite';
+import { PersistenceTest } from '../../../../../../metamodels/pure/model/packageableElements/persistence/DSLPersistence_PersistenceTest';
+import { TestData } from '../../../../../../metamodels/pure/model/packageableElements/persistence/DSLPersistence_PersistenceTestData';
+import type { TestSuite } from '@finos/legend-graph';
+import type { V1_TestSuite } from '../../../../../../../../../legend-graph/src/models/protocols/pure/v1/model/test/V1_TestSuite';
+import type { V1_ConnectionTestData } from '../../../model/packageableElements/persistence/V1_DSLPersistence_ConnectionTestData';
+import type { V1_ParameterValue } from '../../../model/packageableElements/persistence/V1_DSLPersistence_ParameterValue';
+import type { V1_PersistenceTestSuite } from '../../../model/packageableElements/persistence/V1_DSLPersistence_PersistenceTestSuite';
+import type { V1_PersistenceTest } from '../../../model/packageableElements/persistence/V1_DSLPersistence_PersistenceTest';
+import type { V1_TestData } from '../../../model/packageableElements/persistence/V1_DSLPersistence_TestData';
 
 /**********
  * trigger
@@ -587,6 +604,75 @@ export const V1_buildNotifier = (
 };
 
 /**********
+ * testSuites
+ **********/
+
+const buildConnectionTestData = (
+  element: V1_ConnectionTestData,
+  context: V1_GraphBuilderContext,
+): ConnectionTestData => {
+  const connectionTestData = new ConnectionTestData();
+  connectionTestData.connectionId = element.id;
+  connectionTestData.testData = element.data.accept_EmbeddedDataVisitor(
+    new V1_ProtocolToMetaModelEmbeddedDataBuilder(context),
+  );
+  return connectionTestData;
+};
+
+const buildParameterValue = (element: V1_ParameterValue): ParameterValue => {
+  const parameterValue = new ParameterValue();
+  parameterValue.name = element.name;
+  parameterValue.value = element.value;
+  return parameterValue;
+};
+
+const buildTestData = (
+  element: V1_TestData,
+  context: V1_GraphBuilderContext,
+): TestData => {
+  const testData = new TestData();
+  testData.connectionsTestData = element.connectionsTestData.map(
+    (connectionTestData) =>
+      buildConnectionTestData(connectionTestData, context),
+  );
+  return testData;
+};
+
+export const V1_buildPersistenceTest = (
+  element: V1_PersistenceTest,
+  parentSuite: TestSuite | undefined,
+  context: V1_GraphBuilderContext,
+): PersistenceTest => {
+  const persistenceTest = new PersistenceTest();
+  persistenceTest.id = element.id;
+  persistenceTest.__parentSuite = parentSuite;
+  persistenceTest.testData = buildTestData(element.testData, context);
+  persistenceTest.parameters = element.parameters.map((parameter) =>
+    buildParameterValue(parameter),
+  );
+  persistenceTest.assertions = element.assertions.map((assertion) =>
+    V1_buildTestAssertion(assertion, persistenceTest, context),
+  );
+  return persistenceTest;
+};
+
+export const V1_buildPersistenceTestSuite = (
+  element: V1_PersistenceTestSuite[],
+  context: V1_GraphBuilderContext,
+): PersistenceTestSuite[] => {
+  let persistenceTestSuites: PersistenceTestSuite[] = [];
+  element.map((testSuite) => {
+    const persistenceTestSuite = new PersistenceTestSuite();
+    persistenceTestSuite.id = testSuite.id;
+    persistenceTestSuite.tests = testSuite.tests.map((test) =>
+      V1_buildAtomicTest(test, persistenceTestSuite, context),
+    );
+    persistenceTestSuites.push(persistenceTestSuite);
+  });
+  return persistenceTestSuites;
+};
+
+/**********
  * persistence
  **********/
 
@@ -604,4 +690,8 @@ export const V1_buildPersistence = (
   persistence.service = context.resolveService(protocol.service);
   persistence.persister = V1_buildPersister(protocol.persister, context);
   persistence.notifier = V1_buildNotifier(protocol.notifier, context);
+  persistence.testSuites = V1_buildPersistenceTestSuite(
+    protocol.testSuites,
+    context,
+  );
 };

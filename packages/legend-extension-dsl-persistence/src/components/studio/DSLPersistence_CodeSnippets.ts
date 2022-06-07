@@ -38,6 +38,61 @@
 //       filterDuplicates: false;
 //     }
 //   }
+//   notifier:
+//   {
+//     notifyees:
+//     [
+//       PagerDuty
+//       {
+//         url: 'http://xyz.com';
+//       },
+//       Email
+//       {
+//         address: 'http://xyz.com';
+//       }
+//     ]
+//   }
+//   testSuites:
+//   [
+//     testSuite1:
+//     {
+//       tests:
+//       [
+//         test1:
+//         {
+//           data:
+//           [
+//             connections:
+//             [
+//               connection1:
+//                 ExternalFormat
+//                 #{
+//                   contentType: 'application/x.flatdata';
+//                   data: 'FIRST_NAME,LAST_NAME\\nFred,Bloggs\\nJane,Doe';
+//                 }#
+//             ]
+//           ]
+//           parameters:
+//           [
+//
+//           ]
+//           asserts:
+//           [
+//             assert1:
+//               EqualToJson
+//               #{
+//                 expected :
+//                 ExternalFormat
+//                 #{
+//                   contentType: 'application/json';
+//                   data: '{\"Age\":12, \"Name\":\"dummy\"}';
+//                 }#;
+//               }#
+//           ]
+//         }
+//       ]
+//     }
+//   ]
 // }
 
 export const BLANK_PERSISTENCE_SNIPPET = `Persistence \${1:model::NewPersistence}
